@@ -806,7 +806,7 @@ export default function App() {
               className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"
             >
               <AlertTriangle size={19} />
-              <span className="flex-1">{error}</span>
+              <span className="flex-1">{tr(error)}</span>
               <button onClick={() => setError("")}>
                 <X size={18} />
               </button>
@@ -860,6 +860,7 @@ export default function App() {
                 setRecords([]);
               }}
               execute={execute}
+              hasDemo={records.some((r) => r.demo)}
             />
           ) : (
             <Empty title={tr("No records found")} subtitle="" />
@@ -905,7 +906,7 @@ export default function App() {
               role="alert"
               className="mb-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700"
             >
-              {error}
+              {tr(error)}
             </p>
           )}
           {modal.kind === "edit" ? (
@@ -1873,6 +1874,11 @@ function ModulePage({
                                 {i === 0 && (
                                   <span className="mt-1 block font-normal text-[9px] text-slate-400">
                                     #{r.id.slice(0, 8).toUpperCase()}
+                                  </span>
+                                )}
+                                {i === 0 && r.demo === true && (
+                                  <span className="mt-1 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-bold text-amber-600">
+                                    {tr("Demo")}
                                   </span>
                                 )}
                               </span>
@@ -2872,7 +2878,7 @@ function Audit({ lang, role }: { lang: string; role: string }) {
       </div>
       {error && (
         <p role="alert" className="text-rose-600">
-          {error}
+          {tr(error)}
         </p>
       )}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -2929,12 +2935,14 @@ function SettingsPage({
   setLang,
   onLogout,
   execute,
+  hasDemo,
 }: {
   session: Session;
   lang: string;
   setLang: (s: string) => void;
   onLogout: () => void;
   execute: (fn: () => Promise<any>, message?: string) => void;
+  hasDemo: boolean;
 }) {
   const tr = (s: string) => t(s, lang),
     [days, setDays] = useState(session.workspace?.retention_days || 90);
@@ -2982,6 +2990,36 @@ function SettingsPage({
               </Select>
             </label>
           </section>
+          {session.user.role === "admin" && (
+            <section className="rounded-2xl border border-slate-200 bg-white p-6">
+              <div className="mb-4 flex items-center justify-between gap-4">
+                <h3 className="text-sm font-bold text-slate-800">
+                  {tr("Demo mode")}
+                </h3>
+                <button
+                  role="switch"
+                  aria-checked={hasDemo}
+                  aria-label={tr("Demo mode")}
+                  onClick={() =>
+                    execute(
+                      () => api("/settings/demo", "POST", { on: !hasDemo }),
+                      hasDemo ? "Demo data removed" : "Demo data added",
+                    )
+                  }
+                  className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${hasDemo ? "bg-teal-600" : "bg-slate-300"}`}
+                >
+                  <span
+                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${hasDemo ? "start-[22px]" : "start-0.5"}`}
+                  />
+                </button>
+              </div>
+              <p className="text-xs leading-6 text-slate-500">
+                {tr(
+                  "Fill the workspace with realistic demo data so a client sees it populated. Demo rows are flagged, and turning demo mode off removes only those rows.",
+                )}
+              </p>
+            </section>
+          )}
           {session.user.role === "admin" && (
             <section className="rounded-2xl border border-slate-200 bg-white p-6">
               <h3 className="mb-4 text-sm font-bold text-slate-800">
@@ -3086,7 +3124,7 @@ function Team({ lang, session }: { lang: string; session: Session }) {
       </div>
       {message && (
         <p role="status" className="mb-3 text-xs text-teal-700">
-          {message}
+          {tr(message)}
         </p>
       )}
       {session.user.name.startsWith("Demo ") ? (
@@ -3285,10 +3323,9 @@ function Login({
           href="/"
           aria-label="Carehouse home"
           className="absolute start-6 top-6 inline-flex items-center gap-2 font-display text-lg font-extrabold text-slate-900 lg:hidden"
-          dir="ltr"
         >
           <HeartPulse size={22} className="text-teal-700" />
-          Carehouse.
+          <span dir="ltr">Carehouse.</span>
         </a>
         <button
           onClick={() => setLang(lang === "en" ? "ar" : "en")}
@@ -3312,7 +3349,7 @@ function Login({
               role="alert"
               className="mb-5 rounded-xl bg-rose-50 p-3 text-xs leading-6 text-rose-700"
             >
-              {error}
+              {tr(error)}
             </p>
           )}
           <form
@@ -3448,6 +3485,7 @@ function Documents({
   const [files, setFiles] = useState<any[]>([]),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
+  const tr = (s: string) => t(s, lang);
   async function load() {
     try {
       setFiles((await api("/documents/" + patientId)).documents);
@@ -3465,7 +3503,7 @@ function Documents({
       </h3>
       {error && (
         <p role="alert" className="mb-3 text-xs text-rose-600">
-          {error}
+          {tr(error)}
         </p>
       )}
       {files.map((f) => (
