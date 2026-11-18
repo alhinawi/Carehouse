@@ -1,4 +1,8 @@
 export const ar: Record<string, string> = {
+  "Uploaded documents and manually entered linked records block demo removal. Nothing is deleted until those links are reviewed.":
+    "المستندات المرفوعة والسجلات اللي ضفتها والمرتبطة ببيانات تجريبية بتمنع الحذف. مفيش حاجة هتتمسح قبل مراجعة الروابط دي.",
+  "Demo data has linked records or uploaded documents. Remove those links explicitly before turning demo mode off.":
+    "البيانات التجريبية مرتبطة بسجلات أو مستندات مرفوعة. راجع الروابط دي وشيلها بنفسك قبل ما تقفل الوضع التجريبي.",
   "Registration details only. Protected patient fields are managed by the clinical team.":
     "بيانات التسجيل بس. فريق الرعاية مسؤول عن بيانات المريض المحمية.",
   "Clinical patient fields require clinical access":

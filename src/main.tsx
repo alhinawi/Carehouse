@@ -3046,6 +3046,11 @@ function SettingsPage({
                   "Fill the workspace with realistic demo data so a client sees it populated. Demo rows are flagged, and turning demo mode off removes only those rows.",
                 )}
               </p>
+              <p className="mt-2 text-xs leading-6 text-slate-500">
+                {tr(
+                  "Uploaded documents and manually entered linked records block demo removal. Nothing is deleted until those links are reviewed.",
+                )}
+              </p>
             </section>
           )}
           {session.user.role === "admin" && (

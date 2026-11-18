@@ -65,6 +65,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md). The D1 database `carehouse` is bound as `DB`
 - Append-only application audit log for sign-in, authorized list reads, record views, changes, workflows and document access.
 - Optimistic concurrency checks, SQL overlap constraints and guarded transactional bed transfers.
 - Document uploads are restricted to PDF/PNG/JPEG, checked by MIME and file signature, max 128 KB and 10 files/patient. Files download as attachments and are not rendered inline. There is no malware scanner.
+- Turning off demo data is transactional and blocked by uploaded documents or manually entered records linked to the seeded patients, staff or departments. It never removes uploaded documents.
 - Retention is a configurable **review policy**, not automatic deletion. No clinical records are silently purged.
 
 This is a working demonstration, not a production hospital system. It does not include verified-email delivery, password recovery, MFA, Google SSO, SMS/email dispatch, PACS/DICOM, HL7/FHIR integration, insurer submission, card processing, tax-compliant payroll, key rotation, certified immutable audit storage, automated backups, disaster-recovery validation or independent penetration testing. Calendar reminders require the user to import the event into a calendar. Payments and claims are internal demonstration records only. Staff performance is visible as linked activity, not a clinical quality score. Real deployment requires legal, clinical and security review.
