@@ -84,3 +84,18 @@ describe("Record validation", () => {
     }
   });
 });
+describe("Localized server errors", () => {
+  it("every API error message has an Arabic translation", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { ar } = await import("../src/i18n");
+    const source = readFileSync(
+      new URL("../functions/api/[[path]].ts", import.meta.url),
+      "utf8",
+    );
+    const messages = [...source.matchAll(/error: "([^"]+)"/g)].map(
+      (m) => m[1],
+    );
+    const missing = [...new Set(messages)].filter((m) => !ar[m]);
+    expect(missing).toEqual([]);
+  });
+});

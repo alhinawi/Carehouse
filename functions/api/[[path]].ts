@@ -38,16 +38,26 @@ const enc = new TextEncoder(),
   dec = new TextDecoder();
 const b64 = (v: Uint8Array) => btoa(String.fromCharCode(...v));
 const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+// Cache the non-extractable AES-GCM key per isolate: deriving it used to run
+// once per encrypt/decrypt call and dominated CPU on record-heavy requests.
+const keyCache = new Map<string, Promise<CryptoKey>>();
 async function key(secret: string) {
   if (!secret || secret.length < 32)
     throw new Error("Encryption key is not configured");
-  return crypto.subtle.importKey(
-    "raw",
-    await crypto.subtle.digest("SHA-256", enc.encode(secret)),
-    { name: "AES-GCM" },
-    false,
-    ["encrypt", "decrypt"],
-  );
+  let cached = keyCache.get(secret);
+  if (!cached) {
+    cached = crypto.subtle
+      .digest("SHA-256", enc.encode(secret))
+      .then((digest) =>
+        crypto.subtle.importKey("raw", digest, { name: "AES-GCM" }, false, [
+          "encrypt",
+          "decrypt",
+        ]),
+      );
+    cached.catch(() => keyCache.delete(secret));
+    keyCache.set(secret, cached);
+  }
+  return cached;
 }
 async function encrypt(data: unknown, secret: string) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -77,6 +87,11 @@ async function decrypt(data: string, secret: string) {
     ),
   );
 }
+// PBKDF2-SHA-256 at 100,000 iterations. This is the highest iteration count
+// WebCrypto on Workers accepts, and a single verify already costs several
+// times the free plan's 10 ms CPU budget, so everything else on the
+// authentication path is kept as cheap as possible. Never lower the count:
+// the iterations are what makes a stolen database expensive to crack.
 async function passwordHash(
   password: string,
   salt = crypto.getRandomValues(new Uint8Array(16)),
@@ -130,10 +145,11 @@ async function createRecord(
   module: ModuleKey,
   data: Record<string, unknown>,
   id = uid(),
+  demo = 0,
 ) {
   const payload = await encrypt(data, env.ENCRYPTION_KEY);
   return env.DB.prepare(
-    "INSERT INTO records (id,workspace_id,module,name,status,department,patient_id,staff_id,scheduled_at,amount,payload,created_at,updated_at,duration) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+    "INSERT INTO records (id,workspace_id,module,name,status,department,patient_id,staff_id,scheduled_at,amount,payload,created_at,updated_at,duration,demo) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
   ).bind(
     id,
     workspace,
@@ -149,6 +165,7 @@ async function createRecord(
     now(),
     now(),
     Number(data.duration || 30),
+    demo,
   );
 }
 async function unpack(env: Env, row: any): Promise<RecordData> {
@@ -159,22 +176,31 @@ async function unpack(env: Env, row: any): Promise<RecordData> {
     version: row.version,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    demo: !!row.demo,
   };
 }
-async function initWorkspace(env: Env, name: string) {
-  const id = uid(),
-    records = seedRecords();
+// Insert the fictional seed set flagged demo=1 so demo mode can later remove
+// exactly these rows without touching real data. Encrypts run concurrently
+// against the cached key instead of one awaited key derivation per row.
+async function seedDemoRecords(env: Env, workspace: string) {
+  const records = seedRecords();
   const ids = Object.fromEntries(records.map((r) => [r.id, uid()]));
+  const statements = await Promise.all(
+    records.map(({ module, id: oldId, ...data }) => {
+      if (data.patientId) data.patientId = ids[String(data.patientId)];
+      if (data.staffId) data.staffId = ids[String(data.staffId)];
+      return createRecord(env, workspace, module, data, ids[oldId], 1);
+    }),
+  );
+  await env.DB.batch(statements);
+  return statements.length;
+}
+async function initWorkspace(env: Env, name: string) {
+  const id = uid();
   await env.DB.prepare("INSERT INTO workspaces VALUES(?,?,1,90,?)")
     .bind(id, name, now())
     .run();
-  const statements = [];
-  for (const { module, id: oldId, ...data } of records) {
-    if (data.patientId) data.patientId = ids[String(data.patientId)];
-    if (data.staffId) data.staffId = ids[String(data.staffId)];
-    statements.push(await createRecord(env, id, module, data, ids[oldId]));
-  }
-  await env.DB.batch(statements);
+  await seedDemoRecords(env, id);
   return id;
 }
 async function startSession(
@@ -197,8 +223,6 @@ async function startSession(
     .bind(s.id, workspace, userId, name, role, s.csrf, s.expires_at)
     .run();
   const old = getCookie(c, "careline_session");
-  if (old)
-    await c.env.DB.prepare("DELETE FROM sessions WHERE id=?").bind(old).run();
   setCookie(c, "careline_session", s.id, {
     httpOnly: true,
     secure: new URL(c.req.url).protocol === "https:",
@@ -206,7 +230,17 @@ async function startSession(
     path: "/",
     maxAge: 28800,
   });
-  await log(c.env, s, "sign-in", "session");
+  // Old-session cleanup and the audit write do not change the response, so
+  // they run after it and sign-in returns without waiting on two D1 writes.
+  c.executionCtx.waitUntil(
+    (async () => {
+      if (old)
+        await c.env.DB.prepare("DELETE FROM sessions WHERE id=?")
+          .bind(old)
+          .run();
+      await log(c.env, s, "sign-in", "session");
+    })(),
+  );
   return c.json({ user: { name, role }, csrf: s.csrf });
 }
 app.use("*", async (c, next) => {
@@ -919,6 +953,39 @@ app.put("/settings", async (c) => {
     .run();
   await log(c.env, s, "settings", "retention", "", "Retention policy updated");
   return c.json({ ok: true });
+});
+// Demo mode: administrators fill the workspace with the flagged fictional
+// seed set, or remove exactly the flagged rows. Real data is never touched.
+app.post("/settings/demo", async (c) => {
+  const s = c.get("session");
+  if (s.role !== "admin")
+    return c.json({ error: "Administrator access required" }, 403);
+  const b = await c.req.json().catch(() => ({}) as any);
+  if (b.on) {
+    const existing = await c.env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM records WHERE workspace_id=? AND demo=1",
+    )
+      .bind(s.workspace_id)
+      .first<any>();
+    const added =
+      existing && Number(existing.n) > 0
+        ? 0
+        : await seedDemoRecords(c.env, s.workspace_id);
+    await log(c.env, s, "settings", "demo", "", "Demo data enabled");
+    return c.json({ ok: true, demo: true, added });
+  }
+  await c.env.DB.prepare(
+    "DELETE FROM documents WHERE workspace_id=? AND patient_id IN (SELECT id FROM records WHERE workspace_id=? AND demo=1)",
+  )
+    .bind(s.workspace_id, s.workspace_id)
+    .run();
+  const removed = await c.env.DB.prepare(
+    "DELETE FROM records WHERE workspace_id=? AND demo=1",
+  )
+    .bind(s.workspace_id)
+    .run();
+  await log(c.env, s, "settings", "demo", "", "Demo data removed");
+  return c.json({ ok: true, demo: false, removed: removed.meta.changes });
 });
 app.get("/documents/:patientId", async (c) => {
   const s = c.get("session");

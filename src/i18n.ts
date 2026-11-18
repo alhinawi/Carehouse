@@ -324,5 +324,90 @@ export const ar: Record<string, string> = {
     "شارك بيانات الدخول بطريقة آمنة بنفسك. مش هيتبعت إيميل.",
   "No users in this demo session. Create a private account to manage your team.":
     "مفيش مستخدمين في الجلسة التجريبية. اعمل حساب خاص علشان تدير فريقك.",
+  "Demo mode": "الوضع التجريبي",
+  Demo: "تجريبي",
+  "Demo data added": "اتضافت البيانات التجريبية",
+  "Demo data removed": "اتشالت البيانات التجريبية",
+  "Fill the workspace with realistic demo data so a client sees it populated. Demo rows are flagged, and turning demo mode off removes only those rows.":
+    "املأ المساحة ببيانات تجريبية واقعية علشان العميل يشوفها مليانة. الصفوف التجريبية بتبقى معلّمة، وقفل الوضع التجريبي بيمسح الصفوف دي بس.",
+  "Request failed": "الطلب فشل",
+  "Invalid email or password": "الإيميل أو كلمة السر غلط",
+  "Sign in to continue": "سجّل دخولك علشان تكمل",
+  "The request could not be completed. Please try again.":
+    "الطلب مكملش. حاول تاني من فضلك.",
+  "Too many attempts. Try again in 15 minutes.":
+    "محاولات كتير. حاول تاني بعد 15 دقيقة.",
+  "Unable to create account. Try signing in.":
+    "مش قادرين نعمل الحساب. جرّب تسجّل دخولك.",
+  "Enter a name, valid email and a password of 12–128 characters.":
+    "ادخل اسم وإيميل صحيح وكلمة سر من 12 لـ 128 حرف.",
+  "Invalid request origin": "مصدر الطلب غير صالح",
+  "Invalid role": "صلاحية غير صالحة",
+  "Session verification failed. Refresh and try again.":
+    "التحقق من الجلسة فشل. حدّث الصفحة وحاول تاني.",
+  "Request is too large": "الطلب أكبر من الحد المسموح",
+  "Access denied": "الوصول مرفوض",
+  "Administrator access required": "مطلوب صلاحية المدير",
+  "Audit access is restricted": "الوصول لسجل النشاط مقيّد",
+  "Clinical access required": "مطلوب صلاحية طبية",
+  "Doctor or administrator access required": "مطلوب صلاحية دكتور أو مدير",
+  "Private administrator account required": "مطلوب حساب مدير خاص",
+  "Retention must be 7–3650 days": "مدة الاحتفاظ لازم تكون من 7 لـ 3650 يوم",
+  "A conflicting record already exists. Refresh and try again.":
+    "في سجل متعارض موجود بالفعل. حدّث الصفحة وحاول تاني.",
+  "A signed encounter reference is required": "مطلوب مرجع لكشف موقّع",
+  "Beds changed. Refresh to verify transfer.":
+    "السراير اتغيّرت. حدّث الصفحة للتأكد من النقل.",
+  "Choose a PDF, PNG or JPEG up to 128 KB. Demo files only.":
+    "اختار ملف PDF أو PNG أو JPEG بحجم 128 كيلوبايت كحد أقصى. ملفات تجريبية بس.",
+  "Choose a file": "اختار ملف",
+  "Choose a non-administrator role": "اختار صلاحية غير المدير",
+  "Demonstration workspaces support up to 20 users.":
+    "المساحات التجريبية بتدعم 20 مستخدم كحد أقصى.",
+  "Document not found": "المستند مش موجود",
+  "Enter a whole quantity within available stock":
+    "ادخل كمية صحيحة في حدود المخزون المتاح",
+  "Expired or quarantined medicines cannot be dispensed":
+    "الأدوية المنتهية الصلاحية أو المحجوزة مش بتتصرف",
+  "File content does not match the selected type":
+    "محتوى الملف مش مطابق للنوع المختار",
+  "Invoice total cannot be less than payments":
+    "إجمالي الفاتورة مش ممكن يقل عن المدفوعات",
+  "Maximum 10 demonstration documents per patient":
+    "الحد الأقصى 10 مستندات تجريبية لكل مريض",
+  "New invoices must be Draft or Issued":
+    "الفواتير الجديدة لازم تكون مسودة أو صادرة",
+  "Only administrators can delete records":
+    "المديرين بس اللي يقدروا يمسحوا السجلات",
+  "Only occupied beds can be discharged":
+    "السراير المشغولة بس اللي يتعملها خروج",
+  "Paid invoices must be retained": "الفواتير المدفوعة لازم تتحتفظ بيها",
+  "Patient not found": "المريض مش موجود",
+  "Record changed. Refresh and try again.":
+    "السجل اتغيّر. حدّث الصفحة وحاول تاني.",
+  "Record changed. Refresh before editing.":
+    "السجل اتغيّر. حدّث الصفحة قبل التعديل.",
+  "Record not found": "السجل مش موجود",
+  "Select a valid payment method": "اختار طريقة دفع صحيحة",
+  "Signed encounters and occupied beds cannot be deleted":
+    "الكشوفات الموقّعة والسراير المشغولة مش بتتمسح",
+  "Signed records are immutable. Add a new encounter.":
+    "السجلات الموقّعة مش بتتعدل. ضيف كشف جديد.",
+  "This department has linked records and must be retained":
+    "القسم ده ليه سجلات مرتبطة ولازم يفضل موجود",
+  "This encounter has no active prescription": "الكشف ده مفيهوش روشتة نشطة",
+  "This record has linked records and must be retained":
+    "السجل ده ليه سجلات مرتبطة ولازم يفضل موجود",
+  "Unsupported workflow": "إجراء غير مدعوم",
+  "Use Record payment to update payment status":
+    "استخدم تسجيل الدفع علشان تحدّث حالة الدفع",
+  "You cannot change your own role": "مش ممكن تغيّر صلاحيتك بنفسك",
+  "You cannot remove your own account": "مش ممكن تمسح حسابك بنفسك",
+  "You do not have permission for this workflow":
+    "معندكش صلاحية للإجراء ده",
+  "You do not have permission to create this record":
+    "معندكش صلاحية تضيف السجل ده",
+  "You do not have permission to edit this record":
+    "معندكش صلاحية تعدّل السجل ده",
 };
 export const t = (s: string, lang: string) => (lang === "ar" ? ar[s] || s : s);
