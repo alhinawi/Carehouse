@@ -506,6 +506,13 @@ app.post("/records/:module", async (c) => {
       403,
     );
   const data = cleanData(m, await c.req.json());
+  if (m === "pharmacy" && data.status !== "Quarantined")
+    data.status =
+      Number(data.stock) === 0
+        ? "Out of stock"
+        : Number(data.stock) <= Number(data.reorder)
+          ? "Low stock"
+          : "In stock";
   if (m === "billing") {
     data.paid = 0;
     data.payments = [];
@@ -546,6 +553,13 @@ app.put("/records/:module/:id", async (c) => {
       409,
     );
   const data = { ...old, ...cleanData(m, b) };
+  if (m === "pharmacy" && data.status !== "Quarantined")
+    data.status =
+      Number(data.stock) === 0
+        ? "Out of stock"
+        : Number(data.stock) <= Number(data.reorder)
+          ? "Low stock"
+          : "In stock";
   if (m === "billing") {
     data.paid = old.paid || 0;
     data.payments = old.payments || [];
@@ -709,6 +723,7 @@ app.post("/workflow/:module/:id", async (c) => {
     if (
       ["Draft", "Void"].includes(data.status) ||
       !Number.isFinite(amount) ||
+      Math.abs(Math.round(amount * 100) - amount * 100) > 0.00001 ||
       amount <= 0 ||
       amount > Number(data.amount) - paid
     )
