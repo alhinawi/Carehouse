@@ -245,6 +245,16 @@ app.use("/auth/*", async (c, next) => {
   }
   await next();
 });
+app.get("/locale", (c) => {
+  const country = (c.req.raw as any).cf?.country;
+  const languages = c.req.header("Accept-Language") || "";
+  return c.json({
+    language:
+      country === "EG" || /(^|,)\s*ar(?:-|;|,|$)/i.test(languages)
+        ? "ar"
+        : "en",
+  });
+});
 app.post("/auth/demo", async (c) => {
   const body = await c.req.json();
   const role = String(body.role || "admin");

@@ -397,3 +397,19 @@ test("encrypted document upload, download and permissions", async ({
     .documents;
   expect(after.length).toBe(0);
 });
+test("Arabic browser defaults to Arabic, explicit English persists", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    locale: "ar-EG",
+    timezoneId: "Africa/Cairo",
+  });
+  const page = await context.newPage();
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute("lang", "ar");
+  await page.getByRole("button", { name: "English", exact: true }).click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await context.close();
+});
