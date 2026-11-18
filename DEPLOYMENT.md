@@ -2,8 +2,8 @@
 
 Deploy only after the chosen Pages project name is approved and available.
 
-1. Create a new Cloudflare D1 database named `carehouse` (or another non-conflicting name).
-2. Replace `name`, `database_name`, and `database_id` in `wrangler.toml` with the actual Pages project and D1 values. Keep binding `DB`.
+1. The D1 database `carehouse` has been provisioned and verified. Use the ID committed in `wrangler.toml`.
+2. Confirm the Pages project is `carehouse` and keep D1 binding `DB` pointing at the committed database ID.
 3. Apply all migrations to that exact new database with `wrangler d1 migrations apply <database-name> --remote`.
 4. Generate a new random secret of at least 32 characters using a secret manager. Configure it as the Pages production secret `ENCRYPTION_KEY`. Do not reuse a test key and do not print or commit it.
 5. Build with `npm ci && npm run build` and deploy `out` with Pages Functions from this repository. Ensure the production D1 binding `DB` is present.

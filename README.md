@@ -53,7 +53,7 @@ Repeated test runs may hit the deliberate 30-auth-attempt/15-minute limit. A fre
 
 ## Deploy
 
-See [DEPLOYMENT.md](DEPLOYMENT.md). The D1 database ID in `wrangler.toml` is a placeholder and must be replaced. `ENCRYPTION_KEY` is a required secret, never a committed value. Back up both the D1 database and key before changes. Losing the key means losing the encrypted records.
+See [DEPLOYMENT.md](DEPLOYMENT.md). The D1 database `carehouse` is bound as `DB` in `wrangler.toml`. `ENCRYPTION_KEY` is a required secret, never a committed value. Back up both the D1 database and key before changes. Losing the key means losing the encrypted records.
 
 ## Security model and limits
 

@@ -7,7 +7,7 @@
     "dev": "next dev --hostname 0.0.0.0",
     "build": "tsc --noEmit && next build && node scripts/security-headers.mjs",
     "preview": "wrangler pages dev out --port 8788",
-    "db:local": "wrangler d1 migrations apply hospital-hms --local",
+    "db:local": "wrangler d1 migrations apply carehouse --local",
     "test": "vitest run tests/unit.test.ts",
     "test:e2e": "playwright test",
     "typecheck": "tsc -b"
