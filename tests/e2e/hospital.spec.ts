@@ -413,3 +413,71 @@ test("Arabic browser defaults to Arabic, explicit English persists", async ({
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await context.close();
 });
+test("mobile brand returns home on every module and account menu replaces initials", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await demo(page);
+  for (const m of [
+    "patients",
+    "appointments",
+    "emr",
+    "staff",
+    "departments",
+    "beds",
+    "pharmacy",
+    "lab",
+    "billing",
+    "hr",
+    "reports",
+    "audit",
+    "settings",
+  ]) {
+    await page.goto("/#" + m);
+    const home = page
+      .locator("header")
+      .getByRole("link", { name: "Carehouse home" });
+    await expect(home).toBeVisible();
+    await home.click();
+    await expect(
+      page.getByRole("heading", { name: "Hospital overview", exact: true }),
+    ).toBeVisible();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
+  await page.goto("/#patients");
+  await page
+    .locator("header")
+    .getByRole("button", { name: "Account", exact: true })
+    .click();
+  await expect(page.getByRole("menu")).toContainText("Demo user");
+  await expect(page.getByRole("menuitem", { name: "Sign out" })).toBeVisible();
+  await page.screenshot({
+    path: `${screenshots}/carehouse-mobile-account-en.png`,
+    fullPage: false,
+  });
+  await page.getByRole("menuitem", { name: /Language/ }).click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "ar");
+  await page.screenshot({
+    path: `${screenshots}/carehouse-mobile-account-ar.png`,
+    fullPage: false,
+  });
+  await page.getByRole("button", { name: "اقفل", exact: true }).click();
+  await expect(
+    page.locator("header").getByRole("link", { name: "Carehouse، الرئيسية" }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: `${screenshots}/carehouse-mobile-header-ar.png`,
+    fullPage: false,
+  });
+  await page
+    .locator("header")
+    .getByRole("link", { name: "Carehouse، الرئيسية" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "متابعة المستشفى", exact: true }),
+  ).toBeVisible();
+});
