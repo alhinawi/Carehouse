@@ -99,3 +99,19 @@ describe("Localized server errors", () => {
     expect(missing).toEqual([]);
   });
 });
+describe("Busy error classification", () => {
+  it("maps D1 resource exhaustion to a clear busy error", async () => {
+    const { isBusyError, BUSY_ERROR } = await import("../src/errors");
+    expect(BUSY_ERROR.length).toBeGreaterThan(10);
+    expect(
+      isBusyError(
+        Object.assign(new Error("D1_ERROR"), {
+          cause: new Error("exceeded maximum number of rows read per day"),
+        }),
+      ),
+    ).toBe(true);
+    expect(isBusyError(new Error("too many rows written"))).toBe(true);
+    expect(isBusyError(new Error("UNIQUE constraint failed"))).toBe(false);
+    expect(isBusyError(new Error("Appointment overlaps an existing appointment"))).toBe(false);
+  });
+});
