@@ -1,4 +1,8 @@
 export const ar: Record<string, string> = {
+  "Registration details only. Protected patient fields are managed by the clinical team.":
+    "بيانات التسجيل بس. فريق الرعاية مسؤول عن بيانات المريض المحمية.",
+  "Clinical patient fields require clinical access":
+    "بيانات المريض الطبية متاحة لفريق الرعاية بس",
   Dashboard: "لوحة المتابعة",
   Overview: "نظرة عامة",
   Workspace: "مساحة الشغل",
@@ -405,8 +409,7 @@ export const ar: Record<string, string> = {
     "استخدم تسجيل الدفع علشان تحدّث حالة الدفع",
   "You cannot change your own role": "مش ممكن تغيّر صلاحيتك بنفسك",
   "You cannot remove your own account": "مش ممكن تمسح حسابك بنفسك",
-  "You do not have permission for this workflow":
-    "معندكش صلاحية للإجراء ده",
+  "You do not have permission for this workflow": "معندكش صلاحية للإجراء ده",
   "You do not have permission to create this record":
     "معندكش صلاحية تضيف السجل ده",
   "You do not have permission to edit this record":
