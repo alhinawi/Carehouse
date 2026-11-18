@@ -3,6 +3,6 @@ compatibility_date = "2026-11-01"
 pages_build_output_dir = "out"
 [[d1_databases]]
 binding = "DB"
-database_name = "hospital-hms"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_name = "carehouse"
+database_id = "79f4cd06-c7a8-40a8-9af2-10a3cd7cb42c"
 migrations_dir = "migrations"
