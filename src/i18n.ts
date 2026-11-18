@@ -331,6 +331,8 @@ export const ar: Record<string, string> = {
   "Fill the workspace with realistic demo data so a client sees it populated. Demo rows are flagged, and turning demo mode off removes only those rows.":
     "املأ المساحة ببيانات تجريبية واقعية علشان العميل يشوفها مليانة. الصفوف التجريبية بتبقى معلّمة، وقفل الوضع التجريبي بيمسح الصفوف دي بس.",
   "Request failed": "الطلب فشل",
+  "The service is busy right now. Please try again shortly.":
+    "الخدمة مشغولة دلوقتي. من فضلك حاول تاني بعد شوية.",
   "Invalid email or password": "الإيميل أو كلمة السر غلط",
   "Sign in to continue": "سجّل دخولك علشان تكمل",
   "The request could not be completed. Please try again.":
