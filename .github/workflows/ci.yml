@@ -1,0 +1,24 @@
+name: Carehouse checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - run: npm audit --omit=dev
+      - run: node -e "require('fs').writeFileSync('.dev.vars','ENCRYPTION_KEY='+require('crypto').randomBytes(48).toString('hex'))"
+      - run: npm run db:local
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
