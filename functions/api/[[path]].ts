@@ -11,6 +11,7 @@ import {
   type RecordData,
 } from "../../src/domain";
 import { seedRecords } from "../../src/seed";
+import { BUSY_ERROR, isBusyError } from "../../src/errors";
 type Env = { DB: D1Database; ENCRYPTION_KEY: string };
 type Session = {
   id: string;
@@ -34,6 +35,16 @@ app.use(
 );
 const now = () => new Date().toISOString();
 const uid = () => crypto.randomUUID();
+// Bump the workspace data version on every records mutation so clients can
+// revalidate their cached record list with a one-row read instead of
+// re-reading the whole workspace.
+async function touch(env: Env, workspace: string) {
+  await env.DB.prepare(
+    "UPDATE workspaces SET data_version=data_version+1 WHERE id=?",
+  )
+    .bind(workspace)
+    .run();
+}
 const enc = new TextEncoder(),
   dec = new TextDecoder();
 const b64 = (v: Uint8Array) => btoa(String.fromCharCode(...v));
@@ -197,10 +208,13 @@ async function seedDemoRecords(env: Env, workspace: string) {
 }
 async function initWorkspace(env: Env, name: string) {
   const id = uid();
-  await env.DB.prepare("INSERT INTO workspaces VALUES(?,?,1,90,?)")
+  await env.DB.prepare(
+    "INSERT INTO workspaces (id,name,demo,retention_days,created_at) VALUES(?,?,1,90,?)",
+  )
     .bind(id, name, now())
     .run();
   await seedDemoRecords(env, id);
+  await touch(env, id);
   return id;
 }
 async function startSession(
@@ -397,7 +411,17 @@ app.post("/logout", async (c) => {
 app.get("/records", async (c) => {
   const s = c.get("session");
   const allowed = moduleKeys.filter((m) => can(s.role, m));
-  if (!allowed.length) return c.json({ records: [] });
+  if (!allowed.length) return c.json({ records: [], version: 0 });
+  // Hot-path revalidation: a client that already holds the current version
+  // costs one primary-key read instead of re-reading every workspace row.
+  const known = Number(c.req.query("v") || 0);
+  const wsVersion = await c.env.DB.prepare(
+    "SELECT data_version FROM workspaces WHERE id=?",
+  )
+    .bind(s.workspace_id)
+    .first<any>();
+  const version = Number(wsVersion?.data_version || 0);
+  if (known && known === version) return c.json({ unchanged: true, version });
   const result = await c.env.DB.prepare(
     `SELECT * FROM records WHERE workspace_id=? AND module IN (${allowed.map(() => "?").join(",")}) ORDER BY created_at DESC LIMIT 2000`,
   )
@@ -460,7 +484,7 @@ app.get("/records", async (c) => {
     }
     records.push(r);
   }
-  return c.json({ records });
+  return c.json({ records, version });
 });
 async function checkRefs(
   env: Env,
@@ -585,6 +609,7 @@ app.post("/records/:module", async (c) => {
   if (refError) return c.json({ error: refError }, 409);
   const id = uid();
   await (await createRecord(c.env, s.workspace_id, m, data, id)).run();
+  await touch(c.env, s.workspace_id);
   await log(c.env, s, "create", m, id);
   return c.json({ id }, 201);
 });
@@ -677,6 +702,7 @@ app.put("/records/:module/:id", async (c) => {
     .run();
   if (!result.meta.changes)
     return c.json({ error: "Record changed. Refresh before editing." }, 409);
+  await touch(c.env, s.workspace_id);
   await log(c.env, s, "update", m, id);
   return c.json({ ok: true });
 });
@@ -741,6 +767,7 @@ app.delete("/records/:module/:id", async (c) => {
   await c.env.DB.prepare("DELETE FROM records WHERE id=? AND workspace_id=?")
     .bind(id, s.workspace_id)
     .run();
+  await touch(c.env, s.workspace_id);
   await log(c.env, s, "delete", m, id);
   return c.json({ ok: true });
 });
@@ -894,6 +921,7 @@ app.post("/workflow/:module/:id", async (c) => {
         { error: "Beds changed. Refresh to verify transfer." },
         409,
       );
+    await touch(c.env, s.workspace_id);
     await log(c.env, s, "transfer", m, id, "Bed transfer");
     return c.json({ ok: true });
   } else return c.json({ error: "Unsupported workflow" }, 400);
@@ -912,6 +940,7 @@ app.post("/workflow/:module/:id", async (c) => {
     .run();
   if (!result.meta.changes)
     return c.json({ error: "Record changed. Refresh and try again." }, 409);
+  await touch(c.env, s.workspace_id);
   await log(c.env, s, action, m, id);
   return c.json({ ok: true });
 });
@@ -971,6 +1000,7 @@ app.post("/settings/demo", async (c) => {
       existing && Number(existing.n) > 0
         ? 0
         : await seedDemoRecords(c.env, s.workspace_id);
+    await touch(c.env, s.workspace_id);
     await log(c.env, s, "settings", "demo", "", "Demo data enabled");
     return c.json({ ok: true, demo: true, added });
   }
@@ -984,6 +1014,7 @@ app.post("/settings/demo", async (c) => {
   )
     .bind(s.workspace_id)
     .run();
+  await touch(c.env, s.workspace_id);
   await log(c.env, s, "settings", "demo", "", "Demo data removed");
   return c.json({ ok: true, demo: false, removed: removed.meta.changes });
 });
@@ -1214,6 +1245,7 @@ app.onError((err, c) => {
       { error: "A conflicting record already exists. Refresh and try again." },
       409,
     );
+  if (isBusyError(err)) return c.json({ error: BUSY_ERROR }, 503);
   return c.json(
     { error: "The request could not be completed. Please try again." },
     500,

@@ -304,6 +304,7 @@ export default function App() {
     [session, setSession] = useState<Session | null>(null),
     [ready, setReady] = useState(false),
     [records, setRecords] = useState<RecordData[]>([]),
+    recordsVersion = useRef(0),
     [page, setPage] = useState(location.hash.slice(1) || "dashboard"),
     [mobile, setMobile] = useState(false),
     [search, setSearch] = useState(""),
@@ -354,7 +355,11 @@ export default function App() {
   async function load() {
     setLoading(true);
     try {
-      setRecords((await api("/records")).records);
+      const r = await api("/records?v=" + recordsVersion.current);
+      if (!r.unchanged) {
+        setRecords(r.records);
+        recordsVersion.current = r.version;
+      }
       setError("");
     } catch (e) {
       setError((e as Error).message);
@@ -363,6 +368,7 @@ export default function App() {
     }
   }
   useEffect(() => {
+    recordsVersion.current = 0;
     if (session) load();
   }, [session]);
   useEffect(() => {

@@ -540,3 +540,28 @@ test("Arabic login shows localized server errors", async ({ page }) => {
   await page.getByRole("button", { name: "دخول" }).click();
   await expect(page.getByText("الإيميل أو كلمة السر غلط")).toBeVisible();
 });
+test("record list revalidates by version instead of re-reading rows", async ({
+  page,
+}) => {
+  await demo(page);
+  const first = await call(page, "/records");
+  expect(first.status).toBe(200);
+  expect(first.body.records.length).toBeGreaterThan(0);
+  const version = first.body.version;
+  const again = await call(page, "/records?v=" + version);
+  expect(again.status).toBe(200);
+  expect(again.body.unchanged).toBe(true);
+  await call(page, "/records/patients", "POST", {
+    name: "Fictional Version Bump",
+    dob: "1990-01-01",
+    sex: "Female",
+    status: "Active",
+  });
+  const afterChange = await call(page, "/records?v=" + version);
+  expect(afterChange.status).toBe(200);
+  expect(afterChange.body.unchanged).toBeUndefined();
+  expect(afterChange.body.version).toBeGreaterThan(version);
+  expect(
+    afterChange.body.records.some((r: any) => r.name === "Fictional Version Bump"),
+  ).toBe(true);
+});
