@@ -92,9 +92,7 @@ describe("Localized server errors", () => {
       new URL("../functions/api/[[path]].ts", import.meta.url),
       "utf8",
     );
-    const messages = [...source.matchAll(/error: "([^"]+)"/g)].map(
-      (m) => m[1],
-    );
+    const messages = [...source.matchAll(/error: "([^"]+)"/g)].map((m) => m[1]);
     const missing = [...new Set(messages)].filter((m) => !ar[m]);
     expect(missing).toEqual([]);
   });
@@ -112,6 +110,45 @@ describe("Busy error classification", () => {
     ).toBe(true);
     expect(isBusyError(new Error("too many rows written"))).toBe(true);
     expect(isBusyError(new Error("UNIQUE constraint failed"))).toBe(false);
-    expect(isBusyError(new Error("Appointment overlaps an existing appointment"))).toBe(false);
+    expect(
+      isBusyError(new Error("Appointment overlaps an existing appointment")),
+    ).toBe(false);
+  });
+});
+
+describe("Patient field policy", () => {
+  it("protects clinical fields from nonclinical roles, including blood group", async () => {
+    const {
+      canAccessPatientField,
+      forbiddenPatientFields,
+      protectedPatientFields,
+    } = await import("../src/domain");
+    for (const role of [
+      "reception",
+      "billing",
+      "pharmacist",
+      "lab",
+      "hr",
+      "auditor",
+    ]) {
+      for (const field of protectedPatientFields) {
+        expect(canAccessPatientField(role, field)).toBe(false);
+        expect(forbiddenPatientFields(role, { [field]: "" })).toEqual([field]);
+      }
+    }
+    expect(
+      forbiddenPatientFields("reception", {
+        name: "Fictional",
+        phone: "01000000000",
+      }),
+    ).toEqual([]);
+    for (const role of ["admin", "doctor", "nurse"]) {
+      expect(
+        forbiddenPatientFields(role, {
+          allergies: "Fictional allergy",
+          bloodGroup: "O+",
+        }),
+      ).toEqual([]);
+    }
   });
 });

@@ -71,6 +71,7 @@ import {
   modules,
   moduleKeys,
   can,
+  canAccessPatientField,
   roles,
   departments,
   type ModuleKey,
@@ -917,6 +918,7 @@ export default function App() {
           )}
           {modal.kind === "edit" ? (
             <RecordForm
+              role={session.user.role}
               module={modal.module}
               record={modal.record}
               records={records}
@@ -1971,6 +1973,7 @@ function ModulePage({
   );
 }
 function RecordForm({
+  role,
   module: m,
   record,
   records,
@@ -1979,6 +1982,7 @@ function RecordForm({
   onClose,
   onSave,
 }: {
+  role: string;
   module: ModuleKey;
   record?: RecordData;
   records: RecordData[];
@@ -2028,6 +2032,14 @@ function RecordForm({
       }}
       className="space-y-5"
     >
+      {m === "patients" && role === "reception" && (
+        <div className="flex items-center gap-2 rounded-xl bg-blue-50 p-3 text-xs text-blue-800">
+          <ShieldCheck size={16} className="shrink-0" />
+          {tr(
+            "Registration details only. Protected patient fields are managed by the clinical team.",
+          )}
+        </div>
+      )}
       {m === "emr" && (
         <div className="flex items-center gap-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-700">
           <LockKeyhole size={16} />
@@ -2037,81 +2049,91 @@ function RecordForm({
         </div>
       )}
       <div className="grid gap-4 sm:grid-cols-2">
-        {modules[m].fields.map((f) => (
-          <label
-            className={`block ${f.type === "textarea" ? "sm:col-span-2" : ""}`}
-            key={f.key}
-          >
-            <span className="mb-1.5 block text-[11px] font-semibold text-slate-600">
-              {lang === "ar" ? f.ar : f.label}
-              {f.required && <span className="ms-1 text-rose-400">*</span>}
-            </span>
-            {f.ref ? (
-              <Select
-                disabled={locked}
-                required={f.required}
-                value={data[f.key] ?? ""}
-                onChange={(e) => setData({ ...data, [f.key]: e.target.value })}
-              >
-                <option value="">{tr("Select...")}</option>
-                {records
-                  .filter(
-                    (r) =>
-                      r.module === f.ref &&
-                      (f.key !== "staffId" ||
-                        m !== "appointments" ||
-                        r.job === "Doctor"),
-                  )
-                  .map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                      {r.specialty ? " · " + r.specialty : ""}
+        {modules[m].fields
+          .filter((f) => m !== "patients" || canAccessPatientField(role, f.key))
+          .map((f) => (
+            <label
+              className={`block ${f.type === "textarea" ? "sm:col-span-2" : ""}`}
+              key={f.key}
+            >
+              <span className="mb-1.5 block text-[11px] font-semibold text-slate-600">
+                {lang === "ar" ? f.ar : f.label}
+                {f.required && <span className="ms-1 text-rose-400">*</span>}
+              </span>
+              {f.ref ? (
+                <Select
+                  disabled={locked}
+                  required={f.required}
+                  value={data[f.key] ?? ""}
+                  onChange={(e) =>
+                    setData({ ...data, [f.key]: e.target.value })
+                  }
+                >
+                  <option value="">{tr("Select...")}</option>
+                  {records
+                    .filter(
+                      (r) =>
+                        r.module === f.ref &&
+                        (f.key !== "staffId" ||
+                          m !== "appointments" ||
+                          r.job === "Doctor"),
+                    )
+                    .map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                        {r.specialty ? " · " + r.specialty : ""}
+                      </option>
+                    ))}
+                </Select>
+              ) : f.options ? (
+                <Select
+                  disabled={locked}
+                  required={f.required}
+                  value={data[f.key] ?? ""}
+                  onChange={(e) =>
+                    setData({ ...data, [f.key]: e.target.value })
+                  }
+                >
+                  <option value="">{tr("Select...")}</option>
+                  {(f.key === "department"
+                    ? records
+                        .filter((r) => r.module === "departments")
+                        .map((r) => r.name)
+                    : f.options
+                  ).map((o) => (
+                    <option key={o} value={o}>
+                      {tr(o)}
                     </option>
                   ))}
-              </Select>
-            ) : f.options ? (
-              <Select
-                disabled={locked}
-                required={f.required}
-                value={data[f.key] ?? ""}
-                onChange={(e) => setData({ ...data, [f.key]: e.target.value })}
-              >
-                <option value="">{tr("Select...")}</option>
-                {(f.key === "department"
-                  ? records
-                      .filter((r) => r.module === "departments")
-                      .map((r) => r.name)
-                  : f.options
-                ).map((o) => (
-                  <option key={o} value={o}>
-                    {tr(o)}
-                  </option>
-                ))}
-              </Select>
-            ) : f.type === "textarea" ? (
-              <textarea
-                disabled={locked}
-                rows={3}
-                maxLength={10000}
-                required={f.required}
-                className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20"
-                value={data[f.key] ?? ""}
-                onChange={(e) => setData({ ...data, [f.key]: e.target.value })}
-              />
-            ) : (
-              <Input
-                disabled={locked}
-                required={f.required}
-                maxLength={f.type === "text" ? 500 : undefined}
-                type={f.type || "text"}
-                min={f.type === "number" ? 0 : undefined}
-                step={f.type === "number" ? "any" : undefined}
-                value={data[f.key] ?? ""}
-                onChange={(e) => setData({ ...data, [f.key]: e.target.value })}
-              />
-            )}
-          </label>
-        ))}
+                </Select>
+              ) : f.type === "textarea" ? (
+                <textarea
+                  disabled={locked}
+                  rows={3}
+                  maxLength={10000}
+                  required={f.required}
+                  className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20"
+                  value={data[f.key] ?? ""}
+                  onChange={(e) =>
+                    setData({ ...data, [f.key]: e.target.value })
+                  }
+                />
+              ) : (
+                <Input
+                  disabled={locked}
+                  required={f.required}
+                  maxLength={f.type === "text" ? 500 : undefined}
+                  type={f.type || "text"}
+                  min={f.type === "number" ? 0 : undefined}
+                  step={f.type === "number" ? "any" : undefined}
+                  value={data[f.key] ?? ""}
+                  onChange={(e) =>
+                    setData({ ...data, [f.key]: e.target.value })
+                  }
+                />
+              )}
+            </label>
+          ))}
         <label className="block">
           <span className="mb-1.5 block text-[11px] font-semibold text-slate-600">
             {tr("Status")} *
