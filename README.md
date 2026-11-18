@@ -60,7 +60,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md). The D1 database `carehouse` is bound as `DB`
 - HTTP-only, same-site session cookies, secure in HTTPS deployments; 8-hour sessions.
 - PBKDF2-SHA256 password hashes with per-user random salts, 100,000 iterations, and 12-character minimum passwords.
 - AES-256-GCM application-level encryption of record payloads and uploaded documents.
-- Server-side role checks, field redaction and workspace scoping on reads/writes.
+- Server-side role checks, field redaction and workspace scoping on reads/writes. Reception can register/edit demographic details but cannot submit protected patient fields. Unauthorized clinical-field writes are rejected, not silently ignored. Existing clinical values are preserved when reception updates demographics.
 - CSRF tokens and origin checks on mutations, authentication throttling, request-size limits, CSP and safe document downloads.
 - Append-only application audit log for sign-in, authorized list reads, record views, changes, workflows and document access.
 - Optimistic concurrency checks, SQL overlap constraints and guarded transactional bed transfers.
@@ -76,4 +76,3 @@ The production dependency audit is clean at initial release. Build/test tooling 
 ## Photos
 
 Real photographs are used for the healthcare welcome panels. No patient photographs are attached to fictional identities.
-

@@ -485,30 +485,49 @@ test("demo mode toggle fills the workspace and removes only flagged rows", async
   page,
 }) => {
   await demo(page);
-  await page.locator("nav").getByRole("button", { name: "Patients", exact: true }).click();
+  await page
+    .locator("nav")
+    .getByRole("button", { name: "Patients", exact: true })
+    .click();
   await page.getByRole("button", { name: "Add patient", exact: true }).click();
   await page.getByLabel("Full name").fill("Fictional Real Keeper");
   await page.getByRole("dialog").getByLabel("Date of birth").fill("1991-05-06");
   await page.getByRole("dialog").getByLabel("Sex").selectOption("Male");
   await page.getByRole("button", { name: "Create record" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.getByPlaceholder("Search records...").fill("Fictional Real Keeper");
+  await page
+    .getByPlaceholder("Search records...")
+    .fill("Fictional Real Keeper");
   await expect(page.locator("tbody")).toContainText("Fictional Real Keeper");
   await page.getByPlaceholder("Search records...").fill("");
-  await page.getByRole("button", { name: "Settings", exact: true }).first().click();
+  await page
+    .getByRole("button", { name: "Settings", exact: true })
+    .first()
+    .click();
   const toggle = page.getByRole("switch", { name: "Demo mode" });
   await expect(toggle).toHaveAttribute("aria-checked", "true");
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-checked", "false");
-  await page.locator("nav").getByRole("button", { name: "Patients", exact: true }).click();
+  await page
+    .locator("nav")
+    .getByRole("button", { name: "Patients", exact: true })
+    .click();
   await page.getByPlaceholder("Search records...").fill("Adam Nabil");
   await expect(page.locator("tbody")).not.toContainText("Adam Nabil");
-  await page.getByPlaceholder("Search records...").fill("Fictional Real Keeper");
+  await page
+    .getByPlaceholder("Search records...")
+    .fill("Fictional Real Keeper");
   await expect(page.locator("tbody")).toContainText("Fictional Real Keeper");
-  await page.getByRole("button", { name: "Settings", exact: true }).first().click();
+  await page
+    .getByRole("button", { name: "Settings", exact: true })
+    .first()
+    .click();
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-checked", "true");
-  await page.locator("nav").getByRole("button", { name: "Patients", exact: true }).click();
+  await page
+    .locator("nav")
+    .getByRole("button", { name: "Patients", exact: true })
+    .click();
   await page.getByPlaceholder("Search records...").fill("Adam Nabil");
   await expect(page.locator("tbody")).toContainText("Adam Nabil");
 });
@@ -516,9 +535,7 @@ test("Arabic login page keeps brand and language toggle apart at 390px", async (
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.addInitScript(() =>
-    localStorage.setItem("carehouse-lang", "ar"),
-  );
+  await page.addInitScript(() => localStorage.setItem("carehouse-lang", "ar"));
   await page.goto("/");
   const brand = page.getByRole("link", { name: "Carehouse home" });
   const langToggle = page.getByRole("button", { name: "English" });
@@ -527,13 +544,14 @@ test("Arabic login page keeps brand and language toggle apart at 390px", async (
   const a = (await brand.boundingBox())!;
   const b = (await langToggle.boundingBox())!;
   const overlap =
-    a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+    a.x < b.x + b.width &&
+    b.x < a.x + a.width &&
+    a.y < b.y + b.height &&
+    b.y < a.y + a.height;
   expect(overlap).toBe(false);
 });
 test("Arabic login shows localized server errors", async ({ page }) => {
-  await page.addInitScript(() =>
-    localStorage.setItem("carehouse-lang", "ar"),
-  );
+  await page.addInitScript(() => localStorage.setItem("carehouse-lang", "ar"));
   await page.goto("/");
   await page.getByLabel("الإيميل").fill("no-such-user@example.test");
   await page.getByLabel("كلمة السر").fill("wrong-password-1");
@@ -562,6 +580,154 @@ test("record list revalidates by version instead of re-reading rows", async ({
   expect(afterChange.body.unchanged).toBeUndefined();
   expect(afterChange.body.version).toBeGreaterThan(version);
   expect(
-    afterChange.body.records.some((r: any) => r.name === "Fictional Version Bump"),
+    afterChange.body.records.some(
+      (r: any) => r.name === "Fictional Version Bump",
+    ),
   ).toBe(true);
+});
+
+test("reception cannot read or overwrite protected patient fields", async ({
+  page,
+  browser,
+}) => {
+  await page.goto("/");
+  const email = `rbac-admin-${Date.now()}@example.test`;
+  const staffEmail = `rbac-reception-${Date.now()}@example.test`;
+  const password = randomBytes(20).toString("base64url");
+  const registered = await page.evaluate(
+    async ({ email, password }) => {
+      const r = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Fictional RBAC Admin", email, password }),
+      });
+      return r.status;
+    },
+    { email, password },
+  );
+  expect(registered).toBe(200);
+  const patient = ((await call(page, "/records")).body as any).records.find(
+    (r: any) => r.module === "patients",
+  );
+  expect(
+    (
+      await call(page, "/users", "POST", {
+        name: "Fictional Reception",
+        email: staffEmail,
+        password,
+        role: "reception",
+      })
+    ).status,
+  ).toBe(201);
+  const context = await browser.newContext();
+  const reception = await context.newPage();
+  await reception.goto("/");
+  await reception.getByLabel("Email address").fill(staffEmail);
+  await reception.getByLabel("Password", { exact: true }).fill(password);
+  await reception.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(
+    reception.getByRole("heading", { name: "Hospital overview", exact: true }),
+  ).toBeVisible();
+  const visible = (
+    (await call(reception, "/records")).body as any
+  ).records.find((r: any) => r.id === patient.id);
+  const protectedFields = [
+    "allergies",
+    "conditions",
+    "history",
+    "bloodGroup",
+    "nationalId",
+    "document",
+    "documentUrl",
+    "emergencyContact",
+  ];
+  for (const field of protectedFields) {
+    expect(visible[field]).toBeUndefined();
+    expect(
+      (
+        await call(reception, `/records/patients/${patient.id}`, "PUT", {
+          ...visible,
+          [field]: "",
+          name: "Must not persist",
+        })
+      ).status,
+    ).toBe(403);
+    expect(
+      (
+        await call(reception, "/records/patients", "POST", {
+          name: "Must not create",
+          dob: "1991-05-06",
+          sex: "Male",
+          status: "Active",
+          [field]: "",
+        })
+      ).status,
+    ).toBe(403);
+  }
+  await reception.goto("/#patients");
+  await reception
+    .getByRole("button", { name: "Add patient", exact: true })
+    .click();
+  for (const label of [
+    "Allergies",
+    "Chronic conditions",
+    "Medical history",
+    "Blood group",
+    "Patient identifier",
+    "Emergency contact",
+  ])
+    await expect(
+      reception.getByRole("dialog").getByLabel(label, { exact: true }),
+    ).toHaveCount(0);
+  await expect(
+    reception.getByText(
+      "Registration details only. Protected patient fields are managed by the clinical team.",
+    ),
+  ).toBeVisible();
+  await reception.screenshot({
+    path: `${screenshots}/reception-registration-en.png`,
+  });
+  await reception
+    .getByRole("dialog")
+    .getByLabel("Full name")
+    .fill("Fictional Reception Registration");
+  await reception
+    .getByRole("dialog")
+    .getByLabel("Date of birth")
+    .fill("1991-05-06");
+  await reception.getByRole("dialog").getByLabel("Sex").selectOption("Male");
+  await reception.getByRole("button", { name: "Create record" }).click();
+  await expect(reception.getByRole("dialog")).toHaveCount(0);
+  expect(
+    (
+      await call(reception, `/records/patients/${patient.id}`, "PUT", {
+        ...visible,
+        name: "Fictional Demographics Updated",
+      })
+    ).status,
+  ).toBe(200);
+  const after = ((await call(page, "/records")).body as any).records.find(
+    (r: any) => r.id === patient.id,
+  );
+  expect(after.name).toBe("Fictional Demographics Updated");
+  for (const field of protectedFields)
+    expect(after[field]).toEqual(patient[field]);
+  await reception.getByRole("button", { name: "Change language" }).click();
+  await reception.setViewportSize({ width: 390, height: 844 });
+  await reception
+    .getByRole("button", { name: "أضف مريض", exact: true })
+    .click();
+  await expect(reception.locator("html")).toHaveAttribute("dir", "rtl");
+  await expect(
+    reception.getByText("Record saved", { exact: true }),
+  ).toHaveCount(0, { timeout: 10000 });
+  await reception.screenshot({
+    path: `${screenshots}/reception-registration-ar-mobile.png`,
+  });
+  expect(
+    await reception.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await context.close();
 });

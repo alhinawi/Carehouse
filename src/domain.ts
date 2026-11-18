@@ -470,6 +470,33 @@ export function can(role: string, module: string, write = false) {
     false
   );
 }
+// This policy is shared by the API and registration form. Reception can
+// register demographics, never read or overwrite protected clinical fields.
+export const protectedPatientFields = [
+  "allergies",
+  "conditions",
+  "history",
+  "bloodGroup",
+  "nationalId",
+  "document",
+  "documentUrl",
+  "emergencyContact",
+] as const;
+export function canAccessPatientField(role: string, field: string) {
+  return (
+    ["admin", "doctor", "nurse"].includes(role) ||
+    !(protectedPatientFields as readonly string[]).includes(field)
+  );
+}
+export function forbiddenPatientFields(
+  role: string,
+  data: Record<string, unknown>,
+) {
+  return protectedPatientFields.filter(
+    (field) =>
+      Object.hasOwn(data, field) && !canAccessPatientField(role, field),
+  );
+}
 export type RecordData = {
   id: string;
   module: ModuleKey;
