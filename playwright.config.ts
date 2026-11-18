@@ -6,10 +6,12 @@ export default defineConfig({
   workers: 1,
   use: {
     baseURL: "http://127.0.0.1:8788",
+    locale: "en-US",
+    timezoneId: "UTC",
     viewport: { width: 1440, height: 1000 },
   },
   webServer: {
-    command: "npx wrangler pages dev dist --port 8788",
+    command: "npx wrangler pages dev out --port 8788",
     url: "http://127.0.0.1:8788",
     reuseExistingServer: false,
     timeout: 30000,

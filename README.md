@@ -21,7 +21,7 @@ A bilingual hospital operations application with a white-and-teal interface, enc
 
 ## Stack
 
-React, TypeScript, Tailwind CSS, Hono and Cloudflare D1. Runs on Cloudflare Pages Functions. No paid service is required. Service quotas still apply.
+Next.js App Router static export, React, TypeScript, Tailwind CSS, Hono and Cloudflare D1. Runs on Cloudflare Pages Functions. No paid service is required. Service quotas still apply.
 
 ## Run locally
 
@@ -71,7 +71,7 @@ This is a working demonstration, not a production hospital system. It does not i
 
 ### Dependency status
 
-The production dependency audit is clean at initial release. Build/test tooling has a transitive picomatch ReDoS advisory. Do not feed untrusted glob patterns to development tooling or expose the development server to the internet. The deployed application serves compiled assets and Pages Functions, not the Vite development server.
+The production dependency audit is clean at initial release. Build/test tooling has a transitive picomatch ReDoS advisory. Do not feed untrusted glob patterns to development tooling or expose the development server to the internet. The deployed application serves compiled assets and Pages Functions, not the Next.js development server.
 
 ## Photos
 

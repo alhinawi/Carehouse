@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { createRoot } from "react-dom/client";
+"use client";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Activity,
   LayoutDashboard,
@@ -89,7 +89,6 @@ import "@fontsource/dm-sans/latin-400.css";
 import "@fontsource/dm-sans/latin-500.css";
 import "@fontsource/dm-sans/latin-600.css";
 import "@fontsource/dm-sans/latin-700.css";
-import "./style.css";
 const icons: Record<string, React.ElementType> = {
   dashboard: LayoutDashboard,
   patients: Users,
@@ -232,9 +231,27 @@ function Modal({
   onClose: () => void;
   wide?: boolean;
 }) {
+  const dialogRef = useRef<HTMLElement>(null);
   useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement;
     const listener = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
+      if (e.key === "Tab" && dialogRef.current) {
+        const elements = Array.from(
+          dialogRef.current.querySelectorAll<HTMLElement>(
+            'button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]',
+          ),
+        ).filter((el) => el.offsetParent !== null);
+        const first = elements[0],
+          last = elements.at(-1);
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last?.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first?.focus();
+        }
+      }
     };
     document.addEventListener("keydown", listener);
     const old = document.body.style.overflow;
@@ -242,6 +259,7 @@ function Modal({
     return () => {
       document.removeEventListener("keydown", listener);
       document.body.style.overflow = old;
+      previouslyFocused?.focus();
     };
   }, [onClose]);
   return (
@@ -250,6 +268,7 @@ function Modal({
       onClick={onClose}
     >
       <section
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={title}
@@ -272,9 +291,14 @@ function Modal({
     </div>
   );
 }
-function App() {
-  const [lang, setLang] = useState(
-      localStorage.getItem("carehouse-lang") || "en",
+export default function App() {
+  const [lang, setLanguage] = useState(
+      localStorage.getItem("carehouse-lang") ||
+        (navigator.languages.some((l) => /^ar(?:-|$)/i.test(l)) ||
+        navigator.language.toUpperCase().endsWith("-EG") ||
+        Intl.DateTimeFormat().resolvedOptions().timeZone === "Africa/Cairo"
+          ? "ar"
+          : "en"),
     ),
     [session, setSession] = useState<Session | null>(null),
     [ready, setReady] = useState(false),
@@ -291,15 +315,25 @@ function App() {
       record?: RecordData;
     } | null>(null),
     [notify, setNotify] = useState(false);
+  const setLang = (value: string) => {
+    localStorage.setItem("carehouse-lang", value);
+    setLanguage(value);
+  };
   const tr = (s: string) => t(s, lang);
   const role = session?.user.role || "";
   useEffect(() => {
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
     document.documentElement.classList.toggle("font-arabic", lang === "ar");
-    localStorage.setItem("carehouse-lang", lang);
   }, [lang]);
   useEffect(() => {
+    if (!localStorage.getItem("carehouse-lang"))
+      api("/locale")
+        .then((r) => {
+          if (!localStorage.getItem("carehouse-lang") && r.language === "ar")
+            setLanguage("ar");
+        })
+        .catch(() => {});
     api("/session")
       .then((s) => {
         csrf = s.csrf;
@@ -3413,4 +3447,3 @@ function downloadAppointment(r: RecordData, patient: string, doctor: string) {
   a.click();
   URL.revokeObjectURL(url);
 }
-createRoot(document.getElementById("root")!).render(<App />);
