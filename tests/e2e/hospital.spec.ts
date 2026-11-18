@@ -481,3 +481,62 @@ test("mobile brand returns home on every module and account menu replaces initia
     page.getByRole("heading", { name: "متابعة المستشفى", exact: true }),
   ).toBeVisible();
 });
+test("demo mode toggle fills the workspace and removes only flagged rows", async ({
+  page,
+}) => {
+  await demo(page);
+  await page.locator("nav").getByRole("button", { name: "Patients", exact: true }).click();
+  await page.getByRole("button", { name: "Add patient", exact: true }).click();
+  await page.getByLabel("Full name").fill("Fictional Real Keeper");
+  await page.getByRole("dialog").getByLabel("Date of birth").fill("1991-05-06");
+  await page.getByRole("dialog").getByLabel("Sex").selectOption("Male");
+  await page.getByRole("button", { name: "Create record" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.getByPlaceholder("Search records...").fill("Fictional Real Keeper");
+  await expect(page.locator("tbody")).toContainText("Fictional Real Keeper");
+  await page.getByPlaceholder("Search records...").fill("");
+  await page.getByRole("button", { name: "Settings", exact: true }).first().click();
+  const toggle = page.getByRole("switch", { name: "Demo mode" });
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "false");
+  await page.locator("nav").getByRole("button", { name: "Patients", exact: true }).click();
+  await page.getByPlaceholder("Search records...").fill("Adam Nabil");
+  await expect(page.locator("tbody")).not.toContainText("Adam Nabil");
+  await page.getByPlaceholder("Search records...").fill("Fictional Real Keeper");
+  await expect(page.locator("tbody")).toContainText("Fictional Real Keeper");
+  await page.getByRole("button", { name: "Settings", exact: true }).first().click();
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
+  await page.locator("nav").getByRole("button", { name: "Patients", exact: true }).click();
+  await page.getByPlaceholder("Search records...").fill("Adam Nabil");
+  await expect(page.locator("tbody")).toContainText("Adam Nabil");
+});
+test("Arabic login page keeps brand and language toggle apart at 390px", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() =>
+    localStorage.setItem("carehouse-lang", "ar"),
+  );
+  await page.goto("/");
+  const brand = page.getByRole("link", { name: "Carehouse home" });
+  const langToggle = page.getByRole("button", { name: "English" });
+  await expect(brand).toBeVisible();
+  await expect(langToggle).toBeVisible();
+  const a = (await brand.boundingBox())!;
+  const b = (await langToggle.boundingBox())!;
+  const overlap =
+    a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  expect(overlap).toBe(false);
+});
+test("Arabic login shows localized server errors", async ({ page }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("carehouse-lang", "ar"),
+  );
+  await page.goto("/");
+  await page.getByLabel("الإيميل").fill("no-such-user@example.test");
+  await page.getByLabel("كلمة السر").fill("wrong-password-1");
+  await page.getByRole("button", { name: "دخول" }).click();
+  await expect(page.getByText("الإيميل أو كلمة السر غلط")).toBeVisible();
+});
