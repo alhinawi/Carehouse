@@ -547,5 +547,30 @@ export function validate(module: ModuleKey, data: Record<string, unknown>) {
       !Number.isInteger(Number(data.reorder)))
   )
     errors.push("Stock and reorder levels must be whole numbers");
+  if (["billing", "pharmacy", "hr"].includes(module)) {
+    for (const k of ["amount", "bonus", "deduction"]) {
+      const n = Number(data[k] || 0);
+      if (Math.abs(Math.round(n * 100) - n * 100) > 0.00001)
+        errors.push("Money amounts must have at most two decimal places");
+    }
+  }
+  if (
+    module === "hr" &&
+    data.shiftEnd &&
+    String(data.shiftEnd) < String(data.scheduledAt)
+  )
+    errors.push("End time must be after start time");
+  if (
+    module === "hr" &&
+    data.kind === "Payroll" &&
+    Number(data.deduction || 0) >
+      Number(data.amount || 0) + Number(data.bonus || 0)
+  )
+    errors.push("Deductions cannot exceed salary and bonus");
+  if (
+    module === "departments" &&
+    (!Number.isInteger(Number(data.capacity)) || Number(data.capacity) < 1)
+  )
+    errors.push("Capacity must be a positive whole number");
   return errors;
 }

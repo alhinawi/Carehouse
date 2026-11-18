@@ -1,5 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { randomBytes } from "node:crypto";
+import { mkdirSync } from "node:fs";
+const screenshots = process.env.SCREENSHOT_DIR || "test-results/screenshots";
+mkdirSync(screenshots, { recursive: true });
 const origin = "http://127.0.0.1:8788";
 async function demo(page: any, role = "admin") {
   await page.goto("/");
@@ -331,14 +334,23 @@ test("all modules render, Arabic and mobile have no overflow", async ({
         () => document.documentElement.scrollWidth <= innerWidth,
       ),
     ).toBe(true);
-    await page.screenshot({ path: `/downloads/hms-${m}.png`, fullPage: true });
+    await page.screenshot({
+      path: `${screenshots}/hms-${m}.png`,
+      fullPage: true,
+    });
   }
   await page.goto("/#dashboard");
   await page.getByRole("button", { name: "Change language" }).click();
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-  await page.screenshot({ path: "/downloads/hms-arabic.png", fullPage: true });
+  await page.screenshot({
+    path: `${screenshots}/hms-arabic.png`,
+    fullPage: true,
+  });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({ path: "/downloads/hms-mobile.png", fullPage: true });
+  await page.screenshot({
+    path: `${screenshots}/hms-mobile.png`,
+    fullPage: true,
+  });
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
