@@ -1,0 +1,13 @@
+PRAGMA foreign_keys = ON;
+CREATE TABLE workspaces (id TEXT PRIMARY KEY, name TEXT NOT NULL, demo INTEGER NOT NULL DEFAULT 1, retention_days INTEGER NOT NULL DEFAULT 90 CHECK(retention_days BETWEEN 7 AND 3650), created_at TEXT NOT NULL);
+CREATE TABLE users (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL REFERENCES workspaces(id), email TEXT NOT NULL UNIQUE COLLATE NOCASE, name TEXT NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE sessions (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL REFERENCES workspaces(id), user_id TEXT, name TEXT NOT NULL, role TEXT NOT NULL, csrf TEXT NOT NULL, expires_at TEXT NOT NULL);
+CREATE INDEX sessions_expiry ON sessions(expires_at);
+CREATE TABLE records (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL REFERENCES workspaces(id), module TEXT NOT NULL, name TEXT NOT NULL, status TEXT NOT NULL, department TEXT, patient_id TEXT, staff_id TEXT, scheduled_at TEXT, amount REAL NOT NULL DEFAULT 0, payload TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, FOREIGN KEY(patient_id) REFERENCES records(id), FOREIGN KEY(staff_id) REFERENCES records(id));
+CREATE INDEX records_workspace_module ON records(workspace_id,module);
+CREATE INDEX records_patient ON records(workspace_id,patient_id);
+CREATE UNIQUE INDEX appointments_slot ON records(workspace_id,staff_id,scheduled_at) WHERE module='appointments' AND status NOT IN ('Cancelled','No-show');
+CREATE UNIQUE INDEX occupied_patient ON records(workspace_id,patient_id) WHERE module='beds' AND status='Occupied';
+CREATE TABLE audit_logs (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, actor TEXT NOT NULL, role TEXT NOT NULL, action TEXT NOT NULL, module TEXT NOT NULL, record_id TEXT, detail TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE INDEX audit_workspace_time ON audit_logs(workspace_id,created_at);
+CREATE TABLE auth_limits (key TEXT PRIMARY KEY, attempts INTEGER NOT NULL, reset_at INTEGER NOT NULL);
