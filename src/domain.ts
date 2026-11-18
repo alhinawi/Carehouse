@@ -501,7 +501,7 @@ export function validate(module: ModuleKey, data: Record<string, unknown>) {
         (!Number.isFinite(Number(v)) || Number(v) < 0 || Number(v) > 1e9)
       )
         errors.push(`${f.label} must be a valid non-negative number`);
-      if (f.options && !f.options.includes(String(v)))
+      if (f.options && f.key !== "department" && !f.options.includes(String(v)))
         errors.push(`${f.label} is invalid`);
       if (
         ["date", "datetime-local"].includes(f.type || "") &&

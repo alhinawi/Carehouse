@@ -435,6 +435,22 @@ async function checkRefs(
   data: Record<string, unknown>,
   id?: string,
 ) {
+  if (data.department) {
+    const departmentRows = await env.DB.prepare(
+      "SELECT * FROM records WHERE workspace_id=? AND module='departments'",
+    )
+      .bind(s.workspace_id)
+      .all();
+    let exists = false;
+    for (const row of departmentRows.results) {
+      const d = await unpack(env, row);
+      if (d.name === data.department) {
+        exists = true;
+        break;
+      }
+    }
+    if (!exists) return "Choose an existing department";
+  }
   for (const [field, expected] of [
     ["patientId", "patients"],
     ["staffId", "staff"],
@@ -563,6 +579,22 @@ app.put("/records/:module/:id", async (c) => {
       409,
     );
   const data = { ...old, ...cleanData(m, b) };
+  if (m === "departments" && data.name !== old.name) {
+    const linkedDepartment = await c.env.DB.prepare(
+      "SELECT id FROM records WHERE workspace_id=? AND department=? LIMIT 1",
+    )
+      .bind(s.workspace_id, old.name)
+      .first();
+    if (linkedDepartment)
+      return c.json(
+        {
+          error:
+            "Reassign linked staff, appointments and beds before renaming this department",
+        },
+        409,
+      );
+  }
+
   if (m === "pharmacy" && data.status !== "Quarantined")
     data.status =
       Number(data.stock) === 0
@@ -637,6 +669,18 @@ app.delete("/records/:module/:id", async (c) => {
   const data = await unpack(c.env, row);
   if (m === "billing" && Number(data.paid) > 0)
     return c.json({ error: "Paid invoices must be retained" }, 409);
+  if (m === "departments") {
+    const linkedDepartment = await c.env.DB.prepare(
+      "SELECT id FROM records WHERE workspace_id=? AND department=? LIMIT 1",
+    )
+      .bind(s.workspace_id, data.name)
+      .first();
+    if (linkedDepartment)
+      return c.json(
+        { error: "This department has linked records and must be retained" },
+        409,
+      );
+  }
   const docs = await c.env.DB.prepare(
     "SELECT id FROM documents WHERE workspace_id=? AND patient_id=? LIMIT 1",
   )

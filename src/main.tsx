@@ -1962,7 +1962,12 @@ function RecordForm({
                 onChange={(e) => setData({ ...data, [f.key]: e.target.value })}
               >
                 <option value="">{tr("Select...")}</option>
-                {f.options.map((o) => (
+                {(f.key === "department"
+                  ? records
+                      .filter((r) => r.module === "departments")
+                      .map((r) => r.name)
+                  : f.options
+                ).map((o) => (
                   <option key={o} value={o}>
                     {tr(o)}
                   </option>
