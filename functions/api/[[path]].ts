@@ -3,6 +3,8 @@ import { bodyLimit } from "hono/body-limit";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import {
   can,
+  protectedPatientFields,
+  forbiddenPatientFields,
   modules,
   moduleKeys,
   roles,
@@ -447,16 +449,7 @@ app.get("/records", async (c) => {
       !["admin", "doctor", "nurse"].includes(s.role) &&
       r.module === "patients"
     ) {
-      for (const f of [
-        "allergies",
-        "conditions",
-        "history",
-        "nationalId",
-        "document",
-        "documentUrl",
-        "emergencyContact",
-      ])
-        delete r[f];
+      for (const f of protectedPatientFields) delete r[f];
     }
     if (s.role === "pharmacist" && r.module === "emr") {
       for (const f of ["clinicalNotes", "treatment", "vitals", "followUp"])
@@ -589,7 +582,13 @@ app.post("/records/:module", async (c) => {
       { error: "You do not have permission to create this record" },
       403,
     );
-  const data = cleanData(m, await c.req.json());
+  const body = await c.req.json();
+  if (m === "patients" && forbiddenPatientFields(s.role, body).length)
+    return c.json(
+      { error: "Clinical patient fields require clinical access" },
+      403,
+    );
+  const data = cleanData(m, body);
   if (m === "pharmacy" && data.status !== "Quarantined")
     data.status =
       Number(data.stock) === 0
@@ -630,6 +629,11 @@ app.put("/records/:module/:id", async (c) => {
   if (!row) return c.json({ error: "Record not found" }, 404);
   const old = await unpack(c.env, row),
     b = await c.req.json();
+  if (m === "patients" && forbiddenPatientFields(s.role, b).length)
+    return c.json(
+      { error: "Clinical patient fields require clinical access" },
+      403,
+    );
   if (Number(b.version) !== row.version)
     return c.json({ error: "Record changed. Refresh before editing." }, 409);
   if (m === "emr" && old.status === "Signed")
