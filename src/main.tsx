@@ -13,6 +13,7 @@ import {
   FlaskConical,
   Receipt,
   UserRoundCog,
+  UserRound,
   ChartNoAxesCombined,
   ShieldCheck,
   Settings,
@@ -314,7 +315,8 @@ export default function App() {
       module?: ModuleKey;
       record?: RecordData;
     } | null>(null),
-    [notify, setNotify] = useState(false);
+    [notify, setNotify] = useState(false),
+    [accountMenu, setAccountMenu] = useState(false);
   const setLang = (value: string) => {
     localStorage.setItem("carehouse-lang", value);
     setLanguage(value);
@@ -584,7 +586,24 @@ export default function App() {
             >
               <Menu size={22} />
             </button>
-            <div className="hidden text-[12px] text-slate-400 sm:block">
+            <a
+              href="#dashboard"
+              aria-label={
+                lang === "ar" ? "Carehouse، الرئيسية" : "Carehouse home"
+              }
+              onClick={() => {
+                setMobile(false);
+                setAccountMenu(false);
+              }}
+              className="inline-flex shrink-0 items-center gap-2 rounded-lg py-2 font-display text-[15px] font-extrabold tracking-tight text-slate-900 focus-visible:outline-2 focus-visible:outline-teal-600"
+              dir="ltr"
+            >
+              <span className="hidden rounded-lg bg-teal-700 p-1.5 text-white sm:inline-flex">
+                <HeartPulse size={17} />
+              </span>
+              Carehouse<span className="-ms-2 text-teal-600">.</span>
+            </a>
+            <div className="hidden text-[12px] text-slate-400 xl:block">
               {tr("Workspace")}
               <span className="mx-2.5 text-slate-300">/</span>
               <span className="font-semibold text-slate-700">
@@ -654,12 +673,17 @@ export default function App() {
               aria-label="Change language"
             >
               <Globe size={16} />
-              {lang === "en" ? "العربية" : "English"}
+              <span className="hidden sm:inline">
+                {lang === "en" ? "العربية" : "English"}
+              </span>
             </button>
             <div className="relative">
               <button
                 aria-label={tr("Notifications")}
-                onClick={() => setNotify(!notify)}
+                onClick={() => {
+                  setNotify(!notify);
+                  setAccountMenu(false);
+                }}
                 className="relative rounded-xl border border-slate-200 p-2.5 text-slate-500"
               >
                 <Bell size={17} />
@@ -668,7 +692,7 @@ export default function App() {
                 )}
               </button>
               {notify && (
-                <div className="absolute end-0 top-12 w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
+                <div className="absolute end-0 top-12 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
                   <h3 className="mb-3 font-bold">{tr("Notifications")}</h3>
                   {notices.length ? (
                     notices.map((n) => (
@@ -693,7 +717,86 @@ export default function App() {
               )}
             </div>
             <div className="hidden h-7 w-px bg-slate-200 sm:block" />
-            <Avatar name={session.user.name} small />
+            <div className="relative">
+              <button
+                aria-label={tr("Account")}
+                aria-haspopup="menu"
+                aria-expanded={accountMenu}
+                onClick={() => {
+                  setAccountMenu(!accountMenu);
+                  setNotify(false);
+                }}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-600 hover:bg-teal-50 hover:text-teal-700"
+              >
+                <UserRound size={18} />
+              </button>
+              {accountMenu && (
+                <>
+                  <button
+                    aria-label={tr("Close")}
+                    className="fixed inset-0 z-20 cursor-default"
+                    onClick={() => setAccountMenu(false)}
+                  />
+                  <div
+                    role="menu"
+                    aria-label={tr("Account")}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") setAccountMenu(false);
+                    }}
+                    className="absolute end-0 top-12 z-30 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl"
+                  >
+                    <div className="border-b border-slate-100 px-3 py-3">
+                      <p className="text-xs font-bold text-slate-800">
+                        {session.user.name.startsWith("Demo ")
+                          ? lang === "ar"
+                            ? "مستخدم تجريبي"
+                            : "Demo user"
+                          : session.user.name}
+                      </p>
+                      <p className="mt-1 text-[10px] capitalize text-slate-400">
+                        {tr(role.charAt(0).toUpperCase() + role.slice(1))}
+                      </p>
+                    </div>
+                    <button
+                      role="menuitem"
+                      className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start text-xs hover:bg-slate-50"
+                      onClick={() => {
+                        go("settings");
+                        setAccountMenu(false);
+                      }}
+                    >
+                      <Settings size={15} />
+                      {tr("Settings")}
+                    </button>
+                    <button
+                      role="menuitem"
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start text-xs hover:bg-slate-50"
+                      onClick={() => setLang(lang === "en" ? "ar" : "en")}
+                    >
+                      <Globe size={15} />
+                      {tr("Language")}
+                      <span className="ms-auto text-teal-700">
+                        {lang === "en" ? "العربية" : "English"}
+                      </span>
+                    </button>
+                    <button
+                      role="menuitem"
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start text-xs text-rose-600 hover:bg-rose-50"
+                      onClick={async () => {
+                        await api("/logout", "POST");
+                        csrf = "";
+                        setSession(null);
+                        setRecords([]);
+                        setAccountMenu(false);
+                      }}
+                    >
+                      <LogOut size={15} />
+                      {tr("Sign out")}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </header>
         <main className="mx-auto max-w-[1700px] space-y-6 px-4 py-7 sm:px-8">
@@ -3178,6 +3281,15 @@ function Login({
         </div>
       </section>
       <section className="relative flex flex-col items-center justify-center px-6 py-16 sm:px-16">
+        <a
+          href="/"
+          aria-label="Carehouse home"
+          className="absolute start-6 top-6 inline-flex items-center gap-2 font-display text-lg font-extrabold text-slate-900 lg:hidden"
+          dir="ltr"
+        >
+          <HeartPulse size={22} className="text-teal-700" />
+          Carehouse.
+        </a>
         <button
           onClick={() => setLang(lang === "en" ? "ar" : "en")}
           className="absolute end-7 top-7 flex items-center gap-2 text-xs text-slate-500"
