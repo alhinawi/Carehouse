@@ -1008,19 +1008,69 @@ app.post("/settings/demo", async (c) => {
     await log(c.env, s, "settings", "demo", "", "Demo data enabled");
     return c.json({ ok: true, demo: true, added });
   }
-  await c.env.DB.prepare(
-    "DELETE FROM documents WHERE workspace_id=? AND patient_id IN (SELECT id FROM records WHERE workspace_id=? AND demo=1)",
-  )
-    .bind(s.workspace_id, s.workspace_id)
-    .run();
-  const removed = await c.env.DB.prepare(
-    "DELETE FROM records WHERE workspace_id=? AND demo=1",
+  // Documents and manually entered records are never deleted by this switch.
+  // Include department links, which use display names rather than foreign keys.
+  const departmentRows = await c.env.DB.prepare(
+    "SELECT * FROM records WHERE workspace_id=? AND module='departments' AND demo=1",
   )
     .bind(s.workspace_id)
-    .run();
-  await touch(c.env, s.workspace_id);
-  await log(c.env, s, "settings", "demo", "", "Demo data removed");
-  return c.json({ ok: true, demo: false, removed: removed.meta.changes });
+    .all();
+  const departmentNames = await Promise.all(
+    departmentRows.results.map(async (row) => (await unpack(c.env, row)).name),
+  );
+  const dependencySql = `SELECT 1 FROM records r WHERE r.workspace_id=? AND r.demo=0 AND (
+    r.patient_id IN (SELECT id FROM records WHERE workspace_id=? AND demo=1)
+    OR r.staff_id IN (SELECT id FROM records WHERE workspace_id=? AND demo=1)
+    ${departmentNames.length ? `OR r.department IN (${departmentNames.map(() => "?").join(",")})` : ""}
+  ) UNION ALL SELECT 1 FROM documents d JOIN records r ON r.id=d.patient_id
+    WHERE d.workspace_id=? AND r.workspace_id=? AND r.demo=1`;
+  const dependencyArgs = [
+    s.workspace_id,
+    s.workspace_id,
+    s.workspace_id,
+    ...departmentNames,
+    s.workspace_id,
+    s.workspace_id,
+  ];
+  if (
+    await c.env.DB.prepare(dependencySql + " LIMIT 1")
+      .bind(...dependencyArgs)
+      .first()
+  )
+    return c.json(
+      {
+        error:
+          "Demo data has linked records or uploaded documents. Remove those links explicitly before turning demo mode off.",
+      },
+      409,
+    );
+  const guardId = uid();
+  // Recheck inside the same transaction as deletion. A concurrent link or
+  // upload fails the CHECK guard, rolling back every statement in the batch.
+  const results = await c.env.DB.batch([
+    c.env.DB.prepare(
+      `INSERT INTO mutation_guards VALUES(?,CASE WHEN EXISTS (${dependencySql}) THEN 0 ELSE 1 END)`,
+    ).bind(guardId, ...dependencyArgs),
+    c.env.DB.prepare(
+      "DELETE FROM records WHERE workspace_id=? AND demo=1",
+    ).bind(s.workspace_id),
+    c.env.DB.prepare(
+      "UPDATE workspaces SET data_version=data_version+1 WHERE id=?",
+    ).bind(s.workspace_id),
+    c.env.DB.prepare("INSERT INTO audit_logs VALUES(?,?,?,?,?,?,?,?,?)").bind(
+      uid(),
+      s.workspace_id,
+      s.name,
+      s.role,
+      "settings",
+      "demo",
+      "",
+      "Demo data removed",
+      now(),
+    ),
+    c.env.DB.prepare("DELETE FROM mutation_guards WHERE id=?").bind(guardId),
+  ]);
+  return c.json({ ok: true, demo: false, removed: results[1].meta.changes });
 });
 app.get("/documents/:patientId", async (c) => {
   const s = c.get("session");

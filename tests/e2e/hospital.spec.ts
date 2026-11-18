@@ -731,3 +731,109 @@ test("reception cannot read or overwrite protected patient fields", async ({
   ).toBe(true);
   await context.close();
 });
+
+test("demo removal preserves uploaded documents and manually linked records", async ({
+  page,
+}) => {
+  await demo(page);
+  const rows = ((await call(page, "/records")).body as any).records;
+  const patient = rows.find((r: any) => r.module === "patients");
+  const staff = rows.find((r: any) => r.module === "staff");
+  const lab = rows.find((r: any) => r.module === "lab");
+  const linkedLab = await call(page, "/records/lab", "POST", {
+    ...lab,
+    name: "Fictional linked lab",
+    status: "Requested",
+  });
+  expect(linkedLab.status).toBe(201);
+  const linkedDepartment = await call(page, "/records/staff", "POST", {
+    ...staff,
+    name: "Fictional manually added doctor",
+  });
+  expect(linkedDepartment.status).toBe(201);
+  const uploaded = await page.evaluate(
+    async ({ id }) => {
+      const s = await (await fetch("/api/session")).json();
+      const form = new FormData();
+      form.append(
+        "file",
+        new File(
+          ["%PDF-1.4\nFictional safety test\n%%EOF"],
+          "fictional-preserved.pdf",
+          { type: "application/pdf" },
+        ),
+      );
+      const r = await fetch("/api/documents/" + id, {
+        method: "POST",
+        headers: { "X-CSRF-Token": s.csrf },
+        body: form,
+      });
+      return { status: r.status, body: await r.json() };
+    },
+    { id: patient.id },
+  );
+  expect(uploaded.status).toBe(201);
+  await page.goto("/#settings");
+  await page.getByRole("switch", { name: "Demo mode" }).click();
+  await expect(
+    page.getByText(
+      "Demo data has linked records or uploaded documents. Remove those links explicitly before turning demo mode off.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(page.getByRole("switch", { name: "Demo mode" })).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
+  await page.screenshot({
+    path: `${screenshots}/demo-removal-blocked-en.png`,
+    fullPage: true,
+  });
+  const download = await page.request.get("/api/document/" + uploaded.body.id);
+  expect(download.status()).toBe(200);
+  expect(await download.text()).toContain("Fictional safety test");
+  expect(((await call(page, "/records")).body as any).records).toHaveLength(
+    rows.length + 2,
+  );
+  expect(
+    (await call(page, "/document/" + uploaded.body.id, "DELETE")).status,
+  ).toBe(200);
+  // Linked patient/doctor references remain protected even without documents.
+  expect(
+    (await call(page, "/settings/demo", "POST", { on: false })).status,
+  ).toBe(409);
+  expect(
+    (await call(page, "/records/lab/" + (linkedLab.body as any).id, "DELETE"))
+      .status,
+  ).toBe(200);
+  // Department references have no SQL foreign key, so test them separately.
+  expect(
+    (await call(page, "/settings/demo", "POST", { on: false })).status,
+  ).toBe(409);
+  await page.getByRole("button", { name: "Change language" }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("switch", { name: "الوضع التجريبي" }).click();
+  await expect(
+    page.getByText(
+      "البيانات التجريبية مرتبطة بسجلات أو مستندات مرفوعة. راجع الروابط دي وشيلها بنفسك قبل ما تقفل الوضع التجريبي.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await page.screenshot({
+    path: `${screenshots}/demo-removal-blocked-ar-mobile.png`,
+    fullPage: true,
+  });
+  expect(
+    (
+      await call(
+        page,
+        "/records/staff/" + (linkedDepartment.body as any).id,
+        "DELETE",
+      )
+    ).status,
+  ).toBe(200);
+  expect(
+    (await call(page, "/settings/demo", "POST", { on: false })).status,
+  ).toBe(200);
+  expect(((await call(page, "/records")).body as any).records).toEqual([]);
+});
