@@ -1,5 +1,30 @@
 # Carehouse
 
+[Open the live application](https://carehouse.pages.dev/)
+
+## See it in action
+
+Hospital dashboard, fictional patient records and bed availability.
+
+![Carehouse desktop dashboard](docs/media/desktop.webp)
+
+| Patients | Beds |
+| --- | --- |
+| ![Patients view](docs/media/patients.webp) | ![Beds view](docs/media/beds.webp) |
+
+### Short interface tour
+
+![Carehouse live interface tour](docs/media/demo.gif)
+
+A short GIF of three real navigation captures, not a continuous screen recording. Captured from the live site on November 19, 2026. The captures use a private fictional demo workspace. Never enter real patient data.
+
+<details>
+<summary>Mobile layout (390px)</summary>
+
+<img src="docs/media/mobile.webp" alt="Carehouse mobile dashboard" width="390" />
+
+</details>
+
 A bilingual hospital operations application with a white-and-teal interface, encrypted fictional records and database-backed workflows.
 
 > Demonstration only. Do not enter real patient information or use this application for diagnosis, treatment, prescribing, insurance processing or other clinical decisions. This project is not certified for healthcare regulatory compliance.
